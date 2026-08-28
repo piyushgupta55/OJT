@@ -1,0 +1,145 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("ADMIN")
+  organization String   @default("K3 Studio")
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  fullName     String
+  rollNumber   String   @unique
+  division     String   // "Division A", "Division B", etc.
+  college      String
+  branch       String
+  email        String   @unique
+  phoneNumber  String
+  avatar       String?
+
+  // Internship Info
+  startDate    DateTime @default(now())
+  endDate      DateTime
+  durationDays Int      @default(30)
+  ojtStatus    String   @default("ONGOING") // ONGOING, COMPLETED, DROPPED, PENDING
+
+  // OJT Training Modules Checklist
+  codingVideosCompleted       Boolean @default(false)
+  clientCommunicationTraining Boolean @default(false)
+  freelancingTraining         Boolean @default(false)
+  projectManagementTraining   Boolean @default(false)
+  finalProjectStatus          String  @default("IN_PROGRESS") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  certificateSent             Boolean @default(false)
+
+  // Relations
+  freelancerTracking FreelancerTracking?
+  project            Project?
+  attendanceRecords  AttendanceRecord[]
+  assignments        Assignment[]
+  documents          Document[]
+  activityLogs       ActivityLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model FreelancerTracking {
+  id              String   @id @default(cuid())
+  studentId       String   @unique
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  profileUrl      String?
+  accountCreated  Boolean  @default(false)
+  planType        String   @default("FREE") // FREE, PREMIUM
+  bidsCompleted   Int      @default(0)
+  targetBids      Int      @default(100)
+  taskStatus      String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED_100_BIDS
+  updatedAt       DateTime @updatedAt
+}
+
+model Project {
+  id                   String    @id @default(cuid())
+  studentId            String    @unique
+  student              Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  projectName          String
+  description          String?
+  sourcePlaylist       String?
+  technologyUsed       String    // e.g. "React, Node.js, Tailwind CSS"
+  status               String    @default("IN_PROGRESS") // NOT_STARTED, IN_PROGRESS, SUBMITTED, UNDER_VERIFICATION, VERIFIED, NEEDS_CHANGES, COMPLETED
+  githubUrl            String?
+  liveDemoUrl          String?
+  projectSubmittedDate DateTime?
+  verificationStatus   String    @default("PENDING") // PENDING, VERIFIED, REJECTED, NEEDS_CHANGES
+  verificationRemarks  String?
+  verifiedAt           DateTime?
+  verifiedBy           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model AttendanceRecord {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionNumber Int
+  date          DateTime
+  topic         String
+  status        String   @default("PRESENT") // PRESENT, ABSENT, LATE
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([studentId, sessionNumber])
+}
+
+model Assignment {
+  id                 String    @id @default(cuid())
+  studentId          String
+  student            Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  dueDate            DateTime
+  submittedDate      DateTime?
+  submissionLink     String?
+  status             String    @default("PENDING") // PENDING, SUBMITTED, VERIFIED, NEEDS_CHANGES
+  verificationStatus String    @default("PENDING") // PENDING, VERIFIED, NEEDS_CHANGES
+  remarks            String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Document {
+  id             String    @id @default(cuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type           String    // OFFER_LETTER, INTERNSHIP_CERTIFICATE, COMPLETION_LETTER, OJT_DOCUMENTS
+  title          String
+  status         String    @default("NOT_ISSUED") // NOT_ISSUED, GENERATED, ISSUED
+  issuedDate     DateTime?
+  documentNumber String?
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  action      String   // "VERIFY_PROJECT", "UPDATE_BIDS", "MARK_ATTENDANCE", "ISSUE_CERTIFICATE", etc.
+  adminName   String   @default("Piyush Gupta")
+  description String
+  createdAt   DateTime @default(now())
+}
