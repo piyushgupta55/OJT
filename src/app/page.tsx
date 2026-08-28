@@ -4,8 +4,8 @@ import { StudentSheet } from "@/components/sheet/StudentSheet";
 export const dynamic = "force-dynamic";
 
 export default async function SheetHomePage() {
-  let students = [];
-  let dbError = null;
+  let students: any[] = [];
+  let dbError: string | null = null;
 
   try {
     students = await prisma.student.findMany({
