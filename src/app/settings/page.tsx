@@ -150,7 +150,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
               <span className="font-medium">Supabase Project:</span>
               <span className="font-mono text-blue-700 font-semibold truncate max-w-[200px] sm:max-w-xs">
-                https://ybtzhckuxccgchfrcezq.supabase.co
+                {process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yjdaemzngeptzbdyvhlu.supabase.co"}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
