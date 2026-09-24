@@ -186,20 +186,17 @@ export function StudentDetailView({ student }: StudentDetailProps) {
 
   // Handle Bid Update
   const handleUpdateBids = async (targetCount: number) => {
+    setBidsInput(targetCount);
+    if (targetCount >= 100) {
+      confetti({
+        particleCount: 100,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
+    }
     setIsUpdatingBids(true);
     try {
-      const res = await updateFreelancerBids(student.id, targetCount);
-      if (res.success) {
-        setBidsInput(targetCount);
-        if (targetCount >= 100) {
-          confetti({
-            particleCount: 100,
-            spread: 60,
-            origin: { y: 0.6 },
-          });
-        }
-        router.refresh();
-      }
+      await updateFreelancerBids(student.id, targetCount);
     } finally {
       setIsUpdatingBids(false);
     }

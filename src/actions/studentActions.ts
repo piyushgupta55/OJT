@@ -139,15 +139,9 @@ export async function updateStudentField(
       });
     } else if (field === "bids") {
       const bids = Math.max(0, Math.min(1000, Number(value)));
-      await prisma.freelancerTracking.upsert({
+      await prisma.freelancerTracking.updateMany({
         where: { studentId },
-        create: {
-          studentId,
-          bidsCompleted: bids,
-          targetBids: 100,
-          taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
-        },
-        update: {
+        data: {
           bidsCompleted: bids,
           taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
         },
@@ -155,32 +149,18 @@ export async function updateStudentField(
     } else if (field === "projectStatus") {
       const status = String(value);
       const isVerified = status === "VERIFIED" || status === "COMPLETED";
-      await prisma.project.upsert({
+      await prisma.project.updateMany({
         where: { studentId },
-        create: {
-          studentId,
-          projectName: "Capstone Project",
-          technologyUsed: "Next.js, TypeScript",
-          status,
-          verificationStatus: isVerified ? "VERIFIED" : "PENDING",
-        },
-        update: {
+        data: {
           status,
           verificationStatus: isVerified ? "VERIFIED" : "PENDING",
           ...(isVerified && { verifiedAt: new Date(), verifiedBy: CURRENT_ADMIN }),
         },
       });
     } else if (field === "projectName" || field === "githubUrl") {
-      await prisma.project.upsert({
+      await prisma.project.updateMany({
         where: { studentId },
-        create: {
-          studentId,
-          projectName: field === "projectName" ? String(value) : "Capstone Project",
-          technologyUsed: "Next.js, TypeScript",
-          githubUrl: field === "githubUrl" ? String(value) : null,
-          status: "IN_PROGRESS",
-        },
-        update: {
+        data: {
           [field]: String(value),
         },
       });
@@ -193,7 +173,6 @@ export async function updateStudentField(
       });
     }
 
-    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     console.error("Error updating field:", error);
@@ -306,57 +285,49 @@ export async function editStudentFull(
     if (data.ojtStatus !== undefined) studentUpdateData.ojtStatus = data.ojtStatus;
     if (data.certificateSent !== undefined) studentUpdateData.certificateSent = data.certificateSent;
 
-    await prisma.$transaction(async (tx) => {
-      if (Object.keys(studentUpdateData).length > 0) {
-        await tx.student.update({
-          where: { id: studentId },
-          data: studentUpdateData,
-        });
-      }
+    const bids = data.bidsCompleted !== undefined ? Math.max(0, Math.min(1000, Number(data.bidsCompleted))) : undefined;
 
-      if (data.bidsCompleted !== undefined) {
-        const bids = Math.max(0, Math.min(1000, Number(data.bidsCompleted)));
-        await tx.freelancerTracking.upsert({
-          where: { studentId },
-          create: {
-            studentId,
-            bidsCompleted: bids,
-            targetBids: 100,
-            taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
-            planType: "FREE",
-            accountCreated: true,
+    await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        ...studentUpdateData,
+        ...(bids !== undefined && {
+          freelancerTracking: {
+            upsert: {
+              create: {
+                bidsCompleted: bids,
+                targetBids: 100,
+                taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
+                planType: "FREE",
+                accountCreated: true,
+              },
+              update: {
+                bidsCompleted: bids,
+                taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
+              },
+            },
           },
-          update: {
-            bidsCompleted: bids,
-            taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
+        }),
+        ...((data.projectName !== undefined || data.githubUrl !== undefined || data.projectStatus !== undefined) && {
+          project: {
+            upsert: {
+              create: {
+                projectName: data.projectName || "Capstone Project",
+                githubUrl: data.githubUrl || null,
+                status: data.projectStatus || "IN_PROGRESS",
+                technologyUsed: "Next.js, TypeScript",
+              },
+              update: {
+                ...(data.projectName !== undefined && { projectName: data.projectName }),
+                ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl }),
+                ...(data.projectStatus !== undefined && { status: data.projectStatus }),
+              },
+            },
           },
-        });
-      }
-
-      if (
-        data.projectName !== undefined ||
-        data.githubUrl !== undefined ||
-        data.projectStatus !== undefined
-      ) {
-        await tx.project.upsert({
-          where: { studentId },
-          create: {
-            studentId,
-            projectName: data.projectName || "Capstone Project",
-            githubUrl: data.githubUrl || null,
-            status: data.projectStatus || "IN_PROGRESS",
-            technologyUsed: "Next.js, TypeScript",
-          },
-          update: {
-            ...(data.projectName !== undefined && { projectName: data.projectName }),
-            ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl }),
-            ...(data.projectStatus !== undefined && { status: data.projectStatus }),
-          },
-        });
-      }
+        }),
+      },
     });
 
-    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     console.error("Error editing student:", error);

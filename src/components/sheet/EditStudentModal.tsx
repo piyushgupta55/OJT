@@ -10,9 +10,10 @@ interface EditStudentModalProps {
   onClose: () => void;
   student: StudentRecord | null;
   onDelete?: (id: string, name: string) => void;
+  onSave?: (updatedStudent: Partial<StudentRecord> & { id: string }) => void;
 }
 
-export function EditStudentModal({ isOpen, onClose, student, onDelete }: EditStudentModalProps) {
+export function EditStudentModal({ isOpen, onClose, student, onDelete, onSave }: EditStudentModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -47,32 +48,44 @@ export function EditStudentModal({ isOpen, onClose, student, onDelete }: EditStu
 
   if (!isOpen || !student) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName.trim() || !formData.rollNumber.trim()) {
       setErrorMsg("Student Name and Roll Number are required.");
       return;
     }
 
-    setIsSubmitting(true);
-    setErrorMsg("");
-
-    try {
-      const res = await editStudentFull(student.id, {
-        ...formData,
+    const updatedRecord: Partial<StudentRecord> & { id: string } = {
+      id: student.id,
+      fullName: formData.fullName.trim(),
+      rollNumber: formData.rollNumber.trim(),
+      division: formData.division,
+      ojtStatus: formData.ojtStatus,
+      certificateSent: formData.certificateSent,
+      project: {
+        projectName: formData.projectName,
+        githubUrl: formData.githubUrl,
+        status: formData.projectStatus,
+      },
+      freelancerTracking: {
+        ...(student.freelancerTracking || { planType: "FREE" }),
         bidsCompleted: Number(formData.bidsCompleted),
-      });
+      },
+    };
 
-      if (res.success) {
-        onClose();
-      } else {
-        setErrorMsg(res.error || "Failed to update student details");
-      }
-    } catch {
-      setErrorMsg("An unexpected error occurred while saving.");
-    } finally {
-      setIsSubmitting(false);
+    // 1. Immediately update UI and close modal with 0ms delay
+    if (onSave) {
+      onSave(updatedRecord);
     }
+    onClose();
+
+    // 2. Perform DB update in background
+    editStudentFull(student.id, {
+      ...formData,
+      bidsCompleted: Number(formData.bidsCompleted),
+    }).catch((err) => {
+      console.error("Failed to update student in background:", err);
+    });
   };
 
   const handleDelete = () => {

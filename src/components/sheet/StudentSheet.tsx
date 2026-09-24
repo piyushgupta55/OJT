@@ -526,6 +526,11 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
         onClose={() => setEditModal({ isOpen: false, student: null })}
         student={editModal.student}
         onDelete={handleDelete}
+        onSave={(updatedData) => {
+          setStudentsList((prev) =>
+            prev.map((s) => (s.id === updatedData.id ? { ...s, ...updatedData } as StudentRecord : s))
+          );
+        }}
       />
     </div>
   );
