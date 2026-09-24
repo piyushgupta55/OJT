@@ -37,6 +37,7 @@ const realStudents = [
   { fullName: "Purvi Batwar", rollNumber: "2406002", division: "Division A" },
   { fullName: "Ayush Gurav", rollNumber: "2406089", division: "Division B" },
   { fullName: "Abhishek Singh", rollNumber: "2406132", division: "Division B" },
+  { fullName: "Prayatna Yadav", rollNumber: "2406144", division: "Division B" },
 ];
 
 async function seedRealStudents() {
