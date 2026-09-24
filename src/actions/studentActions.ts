@@ -3,6 +3,12 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const revalidateStudentsCache = () => {
+  try {
+    revalidatePath("/", "page");
+  } catch {}
+};
+
 const CURRENT_ADMIN = "Piyush Gupta";
 
 export async function quickAddStudent(data: {
@@ -110,7 +116,7 @@ export async function quickAddStudent(data: {
       },
     });
 
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true, studentId: student.id };
   } catch (error: unknown) {
     console.error("Error adding row:", error);
@@ -187,7 +193,7 @@ export async function updateStudentField(
       });
     }
 
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     console.error("Error updating field:", error);
@@ -208,7 +214,7 @@ export async function toggleCertificateSent(studentId: string) {
       data: { certificateSent: !student.certificateSent },
     });
 
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true, certificateSent: updated.certificateSent };
   } catch (error: unknown) {
     console.error("Error toggling certificate:", error);
@@ -219,7 +225,7 @@ export async function toggleCertificateSent(studentId: string) {
 export async function deleteStudent(studentId: string) {
   try {
     await prisma.student.delete({ where: { id: studentId } });
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     console.error("Error deleting student:", error);
@@ -270,7 +276,7 @@ export async function generateStudentDocument(studentId: string, docType: string
       }
     });
 
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true, documentNumber: docNumber };
   } catch (error: unknown) {
     console.error("Error generating doc:", error);
@@ -350,7 +356,7 @@ export async function editStudentFull(
       }
     });
 
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     console.error("Error editing student:", error);
@@ -365,7 +371,7 @@ export async function updateStudentDetails(studentId: string, data: any) {
       where: { id: studentId },
       data,
     });
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: "Failed to update" };
@@ -392,7 +398,7 @@ export async function addAttendanceSession(studentId: string, data: any) {
         remarks: data.remarks || null,
       },
     });
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error) {
     return { success: false };
@@ -410,7 +416,7 @@ export async function addAssignmentRecord(studentId: string, data: any) {
         status: data.status,
       },
     });
-    revalidatePath("/");
+    revalidateStudentsCache();
     return { success: true };
   } catch (error) {
     return { success: false };

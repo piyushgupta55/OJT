@@ -9,11 +9,30 @@ export default async function SheetHomePage() {
 
   try {
     students = await prisma.student.findMany({
-      include: {
-        project: true,
-        freelancerTracking: true,
-        attendanceRecords: true,
-        documents: true,
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        division: true,
+        email: true,
+        phoneNumber: true,
+        ojtStatus: true,
+        certificateSent: true,
+        startDate: true,
+        endDate: true,
+        project: {
+          select: {
+            projectName: true,
+            githubUrl: true,
+            status: true,
+          },
+        },
+        freelancerTracking: {
+          select: {
+            bidsCompleted: true,
+            planType: true,
+          },
+        },
       },
       orderBy: { rollNumber: "asc" },
     });
