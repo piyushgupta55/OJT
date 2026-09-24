@@ -39,13 +39,6 @@ export async function quickAddStudent(data: {
     const startDate = new Date("2026-08-01");
     const endDate = new Date("2026-08-30");
 
-    const defaultAttendance = Array.from({ length: 25 }, (_, i) => ({
-      sessionNumber: i + 1,
-      date: new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000),
-      topic: `Session ${i + 1}: Industry Training`,
-      status: i < 20 ? "PRESENT" : "ABSENT",
-    }));
-
     const student = await prisma.student.create({
       data: {
         fullName: name,
@@ -82,11 +75,6 @@ export async function quickAddStudent(data: {
             githubUrl: data.githubUrl?.trim() || null,
             status: "IN_PROGRESS",
             verificationStatus: "PENDING",
-          },
-        },
-        attendanceRecords: {
-          createMany: {
-            data: defaultAttendance,
           },
         },
         documents: {

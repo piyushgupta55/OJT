@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { addStudent } from "@/actions/studentActions";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function NewStudentPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -69,7 +74,8 @@ export default function NewStudentPage() {
       });
 
       if (res.success) {
-        window.location.href = "/";
+        router.push("/");
+        router.refresh();
       } else {
         setErrorMsg(res.error || "Failed to create student record.");
       }
@@ -111,9 +117,16 @@ export default function NewStudentPage() {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-xs font-semibold text-white shadow-xs hover:shadow transition-all cursor-pointer"
+            className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-xs font-semibold text-white shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
           >
-            {isSubmitting ? "Saving Student..." : "Save Student"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <span>Save Student</span>
+            )}
           </button>
         </div>
       </div>
@@ -351,9 +364,16 @@ export default function NewStudentPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-xs font-semibold text-white shadow-xs hover:shadow transition-all cursor-pointer"
+            className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-xs font-semibold text-white shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-2"
           >
-            {isSubmitting ? "Saving Student..." : "Save & Enroll Student"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving Student...</span>
+              </>
+            ) : (
+              <span>Save & Enroll Student</span>
+            )}
           </button>
         </div>
       </form>
