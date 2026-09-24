@@ -8,6 +8,7 @@ import {
 } from "@/actions/studentActions";
 import { EditStudentModal } from "./EditStudentModal";
 import { cn, getStatusBadgeClass } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
 
 export interface StudentRecord {
   id: string;
@@ -58,6 +59,13 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
     isOpen: boolean;
     student: StudentRecord | null;
   }>({ isOpen: false, student: null });
+
+  // Delete Confirmation Card Modal State (replaces native browser confirm)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    studentId: string;
+    studentName: string;
+  }>({ isOpen: false, studentId: "", studentName: "" });
 
   const filterOptions = [
     { label: `All Students (${studentsList.length})`, val: "ALL" },
@@ -134,18 +142,30 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
     await updateStudentField(studentId, field, value);
   };
 
-  // Handle Row Delete with Optimistic Update
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Delete ${name}?`)) {
-      setStudentsList((prev) => prev.filter((s) => s.id !== id));
-      await deleteStudent(id);
+  // Open modern Confirmation Card (replaces browser confirm)
+  const handleDelete = (id: string, name: string) => {
+    setDeleteConfirm({ isOpen: true, studentId: id, studentName: name });
+  };
+
+  // Execute deletion when confirmed on the card modal
+  const confirmDeleteAction = async () => {
+    const { studentId } = deleteConfirm;
+    if (!studentId) return;
+
+    // 1. Optimistic instant removal from UI (0ms)
+    setStudentsList((prev) => prev.filter((s) => s.id !== studentId));
+    setDeleteConfirm({ isOpen: false, studentId: "", studentName: "" });
+    if (editModal.isOpen && editModal.student?.id === studentId) {
+      setEditModal({ isOpen: false, student: null });
     }
+
+    // 2. Perform background delete in database
+    await deleteStudent(studentId);
   };
 
   // Handle Export to CSV with current active filters and search
   const handleExportCSV = () => {
     if (!filteredStudents.length) {
-      alert("No students to export with the current filter.");
       return;
     }
 
@@ -532,6 +552,43 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
           );
         }}
       />
+
+      {/* 5. CONFIRMATION CARD MODAL (Replaces native browser confirm alert) */}
+      {deleteConfirm.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">Delete Student?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Are you sure you want to delete <span className="font-semibold text-slate-800">{deleteConfirm.studentName}</span>? This will permanently remove their records from the roster.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ isOpen: false, studentId: "", studentName: "" })}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAction}
+                className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
