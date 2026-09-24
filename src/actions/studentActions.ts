@@ -120,6 +120,17 @@ export async function quickAddStudent(data: {
     return { success: true, studentId: student.id };
   } catch (error: unknown) {
     console.error("Error adding row:", error);
+    if ((error as any)?.code === "P2002") {
+      const target = (error as any)?.meta?.target;
+      const targetStr = Array.isArray(target) ? target.join(",") : String(target || "");
+      if (targetStr.includes("rollNumber")) {
+        return { success: false, error: `Student with Roll Number "${data.rollNumber.trim()}" already exists in the roster.` };
+      }
+      if (targetStr.includes("email")) {
+        return { success: false, error: `A student with this email already exists.` };
+      }
+      return { success: false, error: "A student with this Roll Number or Email already exists." };
+    }
     const msg = error instanceof Error ? error.message : "Failed to add student row";
     return { success: false, error: msg };
   }
@@ -407,5 +418,6 @@ export async function addStudent(formData: any) {
     githubUrl: formData.githubUrl,
     bidsCompleted: formData.initialBids,
     ojtStatus: formData.ojtStatus,
+    certificateSent: formData.certificateSent,
   });
 }

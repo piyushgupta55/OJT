@@ -74,10 +74,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
 
       if (res.success) {
         onClose();
-        router.refresh();
-        if (res.studentId) {
-          router.push(`/students/${res.studentId}`);
-        }
+        window.location.href = "/";
       } else {
         setErrorMsg(res.error || "Failed to create student");
       }

@@ -7,8 +7,9 @@ import {
   deleteStudent,
 } from "@/actions/studentActions";
 import { EditStudentModal } from "./EditStudentModal";
+import { AddStudentModal } from "./AddStudentModal";
 import { cn, getStatusBadgeClass } from "@/lib/utils";
-import { Trash2 } from "lucide-react";
+import { Trash2, UserPlus } from "lucide-react";
 
 export interface StudentRecord {
   id: string;
@@ -66,6 +67,13 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
     studentId: string;
     studentName: string;
   }>({ isOpen: false, studentId: "", studentName: "" });
+
+  // Add Student Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const handleAddStudent = (newStudent: StudentRecord) => {
+    setStudentsList((prev) => [newStudent, ...prev]);
+  };
 
   const filterOptions = [
     { label: `All Students (${studentsList.length})`, val: "ALL" },
@@ -226,12 +234,14 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
 
         {/* Add Student, Filter & Export Buttons */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-          <Link
-            href="/students/new"
-            className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all text-center"
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all text-center cursor-pointer flex items-center justify-center gap-1.5"
           >
-            Add New Student
-          </Link>
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Add New Student</span>
+          </button>
 
           {/* Filter Button with Dropdown Popover */}
           <div className="relative">
@@ -589,6 +599,13 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
           </div>
         </div>
       )}
+
+      {/* 6. ADD STUDENT MODAL (Instant on-sheet addition) */}
+      <AddStudentModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleAddStudent}
+      />
     </div>
   );
 }

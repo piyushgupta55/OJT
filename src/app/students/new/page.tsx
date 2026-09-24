@@ -69,8 +69,7 @@ export default function NewStudentPage() {
       });
 
       if (res.success) {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       } else {
         setErrorMsg(res.error || "Failed to create student record.");
       }
