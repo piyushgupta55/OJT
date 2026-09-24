@@ -33,6 +33,13 @@ export async function quickAddStudent(data: {
     const startDate = new Date("2026-08-01");
     const endDate = new Date("2026-08-30");
 
+    const defaultAttendance = Array.from({ length: 25 }, (_, i) => ({
+      sessionNumber: i + 1,
+      date: new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000),
+      topic: `Session ${i + 1}: Industry Training`,
+      status: i < 20 ? "PRESENT" : "ABSENT",
+    }));
+
     const student = await prisma.student.create({
       data: {
         fullName: name,
@@ -52,74 +59,54 @@ export async function quickAddStudent(data: {
         freelancingTraining: true,
         projectManagementTraining: true,
         finalProjectStatus: "IN_PROGRESS",
-      },
-    });
-
-    // Freelancer record
-    await prisma.freelancerTracking.create({
-      data: {
-        studentId: student.id,
-        profileUrl: `https://freelancer.com/u/${roll.toLowerCase()}`,
-        accountCreated: true,
-        planType: "FREE",
-        bidsCompleted: bids,
-        targetBids: 100,
-        taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : bids > 0 ? "IN_PROGRESS" : "NOT_STARTED",
-      },
-    });
-
-    // Project record
-    await prisma.project.create({
-      data: {
-        studentId: student.id,
-        projectName: data.projectName?.trim() || "Full-Stack Web App",
-        technologyUsed: "Next.js, TypeScript, Tailwind",
-        githubUrl: data.githubUrl?.trim() || null,
-        status: "IN_PROGRESS",
-        verificationStatus: "PENDING",
-      },
-    });
-
-    const defaultAttendance = Array.from({ length: 25 }, (_, i) => ({
-      studentId: student.id,
-      sessionNumber: i + 1,
-      date: new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000),
-      topic: `Session ${i + 1}: Industry Training`,
-      status: i < 20 ? "PRESENT" : "ABSENT",
-    }));
-
-    await prisma.attendanceRecord.createMany({
-      data: defaultAttendance,
-    });
-
-    // Certificate and Offer Letter doc
-    await prisma.document.create({
-      data: {
-        studentId: student.id,
-        type: "INTERNSHIP_CERTIFICATE",
-        title: "Certificate of Internship Completion",
-        status: "NOT_ISSUED",
-        documentNumber: `K3-CERT-2026-${roll}`,
-      },
-    });
-
-    await prisma.document.create({
-      data: {
-        studentId: student.id,
-        type: "OFFER_LETTER",
-        title: "K3 Studio 30-Day OJT Offer Letter",
-        status: "ISSUED",
-        issuedDate: new Date(),
-        documentNumber: `K3-OL-2026-${roll}`,
-      },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        studentId: student.id,
-        action: "ADD_ROW",
-        adminName: CURRENT_ADMIN,
-        description: `Added student ${name} (${roll}, ${division}) to sheet.`,
+        freelancerTracking: {
+          create: {
+            profileUrl: `https://freelancer.com/u/${roll.toLowerCase()}`,
+            accountCreated: true,
+            planType: "FREE",
+            bidsCompleted: bids,
+            targetBids: 100,
+            taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : bids > 0 ? "IN_PROGRESS" : "NOT_STARTED",
+          },
+        },
+        project: {
+          create: {
+            projectName: data.projectName?.trim() || "Full-Stack Web App",
+            technologyUsed: "Next.js, TypeScript, Tailwind",
+            githubUrl: data.githubUrl?.trim() || null,
+            status: "IN_PROGRESS",
+            verificationStatus: "PENDING",
+          },
+        },
+        attendanceRecords: {
+          createMany: {
+            data: defaultAttendance,
+          },
+        },
+        documents: {
+          create: [
+            {
+              type: "INTERNSHIP_CERTIFICATE",
+              title: "Certificate of Internship Completion",
+              status: "NOT_ISSUED",
+              documentNumber: `K3-CERT-2026-${roll}`,
+            },
+            {
+              type: "OFFER_LETTER",
+              title: "K3 Studio 30-Day OJT Offer Letter",
+              status: "ISSUED",
+              issuedDate: new Date(),
+              documentNumber: `K3-OL-2026-${roll}`,
+            },
+          ],
+        },
+        activityLogs: {
+          create: {
+            action: "ADD_ROW",
+            adminName: CURRENT_ADMIN,
+            description: `Added student ${name} (${roll}, ${division}) to sheet.`,
+          },
+        },
       },
     });
 
@@ -247,39 +234,41 @@ export async function generateStudentDocument(studentId: string, docType: string
 
     const docNumber = `K3-${docType === "INTERNSHIP_CERTIFICATE" ? "CERT" : "DOC"}-2026-${student.rollNumber}`;
 
-    await prisma.document.upsert({
-      where: { id: `${studentId}_${docType}` },
-      create: {
-        id: `${studentId}_${docType}`,
-        studentId,
-        type: docType,
-        title: docType === "INTERNSHIP_CERTIFICATE" ? "Certificate of Internship Completion" : "OJT Official Document",
-        status: "ISSUED",
-        issuedDate: new Date(),
-        documentNumber: docNumber,
-      },
-      update: {
-        status: "ISSUED",
-        issuedDate: new Date(),
-        documentNumber: docNumber,
-      },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        studentId,
-        action: "GENERATE_DOCUMENT",
-        adminName: CURRENT_ADMIN,
-        description: `Issued ${docType} (${docNumber}) for ${student.fullName}.`,
-      },
-    });
-
-    if (docType === "INTERNSHIP_CERTIFICATE") {
-      await prisma.student.update({
-        where: { id: studentId },
-        data: { ojtStatus: "COMPLETED" },
+    await prisma.$transaction(async (tx) => {
+      await tx.document.upsert({
+        where: { id: `${studentId}_${docType}` },
+        create: {
+          id: `${studentId}_${docType}`,
+          studentId,
+          type: docType,
+          title: docType === "INTERNSHIP_CERTIFICATE" ? "Certificate of Internship Completion" : "OJT Official Document",
+          status: "ISSUED",
+          issuedDate: new Date(),
+          documentNumber: docNumber,
+        },
+        update: {
+          status: "ISSUED",
+          issuedDate: new Date(),
+          documentNumber: docNumber,
+        },
       });
-    }
+
+      await tx.activityLog.create({
+        data: {
+          studentId,
+          action: "GENERATE_DOCUMENT",
+          adminName: CURRENT_ADMIN,
+          description: `Issued ${docType} (${docNumber}) for ${student.fullName}.`,
+        },
+      });
+
+      if (docType === "INTERNSHIP_CERTIFICATE") {
+        await tx.student.update({
+          where: { id: studentId },
+          data: { ojtStatus: "COMPLETED" },
+        });
+      }
+    });
 
     revalidatePath("/");
     return { success: true, documentNumber: docNumber };
@@ -311,53 +300,55 @@ export async function editStudentFull(
     if (data.ojtStatus !== undefined) studentUpdateData.ojtStatus = data.ojtStatus;
     if (data.certificateSent !== undefined) studentUpdateData.certificateSent = data.certificateSent;
 
-    if (Object.keys(studentUpdateData).length > 0) {
-      await prisma.student.update({
-        where: { id: studentId },
-        data: studentUpdateData,
-      });
-    }
+    await prisma.$transaction(async (tx) => {
+      if (Object.keys(studentUpdateData).length > 0) {
+        await tx.student.update({
+          where: { id: studentId },
+          data: studentUpdateData,
+        });
+      }
 
-    if (data.bidsCompleted !== undefined) {
-      const bids = Math.max(0, Math.min(1000, Number(data.bidsCompleted)));
-      await prisma.freelancerTracking.upsert({
-        where: { studentId },
-        create: {
-          studentId,
-          bidsCompleted: bids,
-          targetBids: 100,
-          taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
-          planType: "FREE",
-          accountCreated: true,
-        },
-        update: {
-          bidsCompleted: bids,
-          taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
-        },
-      });
-    }
+      if (data.bidsCompleted !== undefined) {
+        const bids = Math.max(0, Math.min(1000, Number(data.bidsCompleted)));
+        await tx.freelancerTracking.upsert({
+          where: { studentId },
+          create: {
+            studentId,
+            bidsCompleted: bids,
+            targetBids: 100,
+            taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
+            planType: "FREE",
+            accountCreated: true,
+          },
+          update: {
+            bidsCompleted: bids,
+            taskStatus: bids >= 100 ? "COMPLETED_100_BIDS" : "IN_PROGRESS",
+          },
+        });
+      }
 
-    if (
-      data.projectName !== undefined ||
-      data.githubUrl !== undefined ||
-      data.projectStatus !== undefined
-    ) {
-      await prisma.project.upsert({
-        where: { studentId },
-        create: {
-          studentId,
-          projectName: data.projectName || "Capstone Project",
-          githubUrl: data.githubUrl || null,
-          status: data.projectStatus || "IN_PROGRESS",
-          technologyUsed: "Next.js, TypeScript",
-        },
-        update: {
-          ...(data.projectName !== undefined && { projectName: data.projectName }),
-          ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl }),
-          ...(data.projectStatus !== undefined && { status: data.projectStatus }),
-        },
-      });
-    }
+      if (
+        data.projectName !== undefined ||
+        data.githubUrl !== undefined ||
+        data.projectStatus !== undefined
+      ) {
+        await tx.project.upsert({
+          where: { studentId },
+          create: {
+            studentId,
+            projectName: data.projectName || "Capstone Project",
+            githubUrl: data.githubUrl || null,
+            status: data.projectStatus || "IN_PROGRESS",
+            technologyUsed: "Next.js, TypeScript",
+          },
+          update: {
+            ...(data.projectName !== undefined && { projectName: data.projectName }),
+            ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl }),
+            ...(data.projectStatus !== undefined && { status: data.projectStatus }),
+          },
+        });
+      }
+    });
 
     revalidatePath("/");
     return { success: true };

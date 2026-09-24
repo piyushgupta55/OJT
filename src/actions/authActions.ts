@@ -16,26 +16,18 @@ export async function ensureDefaultAdmin() {
       where: { email: PRIMARY_EMAIL },
     });
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(PRIMARY_PASSWORD, salt);
+    if (existing) return;
 
-    if (!existing) {
-      await prisma.user.create({
-        data: {
-          email: PRIMARY_EMAIL,
-          name: PRIMARY_NAME,
-          passwordHash: hash,
-          role: "ADMIN",
-          organization: "K3 Studio",
-        },
-      });
-    } else {
-      // Update password hash if needed
-      await prisma.user.update({
-        where: { email: PRIMARY_EMAIL },
-        data: { passwordHash: hash },
-      });
-    }
+    const hash = await bcrypt.hash(PRIMARY_PASSWORD, 10);
+    await prisma.user.create({
+      data: {
+        email: PRIMARY_EMAIL,
+        name: PRIMARY_NAME,
+        passwordHash: hash,
+        role: "ADMIN",
+        organization: "K3 Studio",
+      },
+    });
   } catch (err) {
     console.error("Error ensuring default admin user:", err);
   }

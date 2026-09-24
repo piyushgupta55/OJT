@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   updateStudentField,
@@ -43,9 +43,15 @@ export interface StudentRecord {
 }
 
 export function StudentSheet({ initialStudents }: { initialStudents: StudentRecord[] }) {
+  const [studentsList, setStudentsList] = useState<StudentRecord[]>(initialStudents);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Sync prop changes if server revalidates
+  useEffect(() => {
+    setStudentsList(initialStudents);
+  }, [initialStudents]);
 
   // Edit Student Modal State
   const [editModal, setEditModal] = useState<{
@@ -54,7 +60,7 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
   }>({ isOpen: false, student: null });
 
   const filterOptions = [
-    { label: `All Students (${initialStudents.length})`, val: "ALL" },
+    { label: `All Students (${studentsList.length})`, val: "ALL" },
     { label: "Division A", val: "Division A" },
     { label: "Division B", val: "Division B" },
     { label: "100 Bids Completed", val: "100_BIDS" },
@@ -66,7 +72,7 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
 
   // Filter students
   const filteredStudents = useMemo(() => {
-    return initialStudents.filter((s) => {
+    return studentsList.filter((s) => {
       const matchSearch =
         s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.rollNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -84,20 +90,54 @@ export function StudentSheet({ initialStudents }: { initialStudents: StudentReco
 
       return true;
     });
-  }, [initialStudents, searchTerm, activeFilter]);
+  }, [studentsList, searchTerm, activeFilter]);
 
-  // Handle Inline Field Change
+  // Handle Inline Field Change with Optimistic Update
   const handleFieldChange = async (
     studentId: string,
     field: "fullName" | "rollNumber" | "division" | "ojtStatus" | "bids" | "projectStatus" | "projectName" | "githubUrl" | "certificateSent",
     value: string | number | boolean
   ) => {
+    // 1. Optimistic local state update (0ms lag)
+    setStudentsList((prev) =>
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        if (field === "certificateSent") return { ...s, certificateSent: Boolean(value) };
+        if (field === "fullName") return { ...s, fullName: String(value) };
+        if (field === "rollNumber") return { ...s, rollNumber: String(value) };
+        if (field === "division") return { ...s, division: String(value) };
+        if (field === "ojtStatus") return { ...s, ojtStatus: String(value) };
+        if (field === "bids") {
+          const bids = Number(value);
+          return {
+            ...s,
+            freelancerTracking: {
+              ...(s.freelancerTracking || { planType: "FREE" }),
+              bidsCompleted: bids,
+            },
+          };
+        }
+        if (field === "projectName" || field === "githubUrl" || field === "projectStatus") {
+          return {
+            ...s,
+            project: {
+              ...(s.project || { projectName: "Capstone Project", status: "IN_PROGRESS" }),
+              [field]: String(value),
+            },
+          };
+        }
+        return s;
+      })
+    );
+
+    // 2. Perform background server action
     await updateStudentField(studentId, field, value);
   };
 
-  // Handle Row Delete
+  // Handle Row Delete with Optimistic Update
   const handleDelete = async (id: string, name: string) => {
     if (confirm(`Delete ${name}?`)) {
+      setStudentsList((prev) => prev.filter((s) => s.id !== id));
       await deleteStudent(id);
     }
   };
